@@ -1,7 +1,7 @@
 # ==============================================================================
 # ETAPA 1: Compilación (Build Stage)
 # ==============================================================================
-FROM golang:1.26-alpine3.20 AS builder
+FROM golang:1.24-alpine AS builder
 
 # Instalar certificados CA por si la app realiza llamadas HTTPS externas durante el build
 RUN apk add --no-cache ca-certificates tzdata
