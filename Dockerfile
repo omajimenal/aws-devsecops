@@ -9,7 +9,7 @@ RUN apk add --no-cache ca-certificates tzdata
 WORKDIR /app
 
 # Copiar dependencias primero para aprovechar el caché de capas de Docker
-COPY go.mod go.sum ./
+COPY go.mod go.sum* ./
 RUN go mod download
 
 # Copiar el código fuente
