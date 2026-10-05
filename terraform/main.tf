@@ -43,7 +43,7 @@ resource "aws_iam_role" "github_ci_role" {
             "token.actions.githubusercontent.com:aud" = "sts.amazonaws.com"
           }
           StringLike = {
-            "token.actions.githubusercontent.com:sub" = "repo:omajimenal/aws-devsecops:*"
+            "token.actions.githubusercontent.com:sub" = "repo:omajimenal/*"
           }
         }
       }
