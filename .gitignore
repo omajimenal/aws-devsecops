@@ -1,0 +1,10 @@
+# Terraform
+**/.terraform/
+*.tfstate
+*.tfstate.*
+*.tfvars
+*.tfvars.json
+
+# Binarios y temporales de Go / OS
+/src/server
+.DS_Store
