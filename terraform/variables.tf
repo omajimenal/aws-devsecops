@@ -6,6 +6,6 @@ variable "aws_region" {
 
 variable "github_repo" {
   type        = string
-  default     = "TU_USUARIO/TU_NUEVO_REPO"
+  default     = "omajimenal/aws-devsecops"
   description = "Repositorio en GitHub en formato usuario/repositorio"
 }
