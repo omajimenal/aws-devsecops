@@ -10,7 +10,7 @@ WORKDIR /app
 
 # Copiar dependencias primero para aprovechar el caché de capas de Docker
 COPY go.mod go.sum* ./
-RUN go mod download
+RUN go mod download || true
 
 # Copiar el código fuente
 COPY . .
