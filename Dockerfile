@@ -2,7 +2,7 @@
 # STAGE 1: Builder
 # ------------------------------------------------------------------------------
     #crear una imagen basada en Go 1.22 y a la etapa se le llamará "builder"
-FROM golang:1.22-alpine AS builder 
+FROM golang:1.24-alpine AS builder 
 
     #Definir el directorio de trabajo dentro del contenedor
 WORKDIR /app
@@ -20,7 +20,7 @@ RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-s -w" -o server .
 # ------------------------------------------------------------------------------
 # STAGE 2: Runtime Distroless / Unprivileged User (Hardened)
 # ------------------------------------------------------------------------------
-FROM alpine:3.19
+FROM alpine:3.20
 
 # Crear usuario sin privilegios para evitar correr como root
 RUN addgroup -S appgroup && adduser -S appuser -G appgroup
