@@ -1,40 +1,49 @@
-# ------------------------------------------------------------------------------
-# STAGE 1: Builder
-# ------------------------------------------------------------------------------
-    #crear una imagen basada en Go 1.22 y a la etapa se le llamará "builder"
-FROM golang:1.24-alpine AS builder 
+# ==============================================================================
+# ETAPA 1: Compilación (Build Stage)
+# ==============================================================================
+FROM golang:1.24-alpine3.20 AS builder
 
-    #Definir el directorio de trabajo dentro del contenedor
+# Instalar certificados CA por si la app realiza llamadas HTTPS externas durante el build
+RUN apk add --no-cache ca-certificates tzdata
+
 WORKDIR /app
 
-# Copiar definiciones de dependencias
-COPY src/go.mod ./
+# Copiar dependencias primero para aprovechar el caché de capas de Docker
+COPY go.mod go.sum ./
 RUN go mod download
 
-# Copiar codigo fuente
-COPY src/*.go ./
+# Copiar el código fuente
+COPY . .
 
-# Compilar binario estatico optimizado (sin depuración ni CGO)
-RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-s -w" -o server .
+# Compilar un binario completamente estático sin dependencias de C (CGO_ENABLED=0)
+# -ldflags="-s -w" elimina símbolos de depuración y tablas de símbolos para reducir el tamaño
+RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build \
+    -ldflags="-s -w -extldflags '-static'" \
+    -o /app/server ./cmd/server
 
-# ------------------------------------------------------------------------------
-# STAGE 2: Runtime Distroless / Unprivileged User (Hardened)
-# ------------------------------------------------------------------------------
-FROM alpine:3.20
+# Crear un usuario no privilegiado en la etapa de build
+RUN echo "nonroot:x:65532:65532:nonroot:/:" > /etc/passwd-nonroot
 
-# Crear usuario sin privilegios para evitar correr como root
-RUN addgroup -S appgroup && adduser -S appuser -G appgroup
+# ==============================================================================
+# ETAPA 2: Runtime Mínimo y Seguro (Distroless Stage)
+# ==============================================================================
+FROM gcr.io/distroless/static-debian12:nonroot
 
-WORKDIR /app
+WORKDIR /
 
-# Copiar el binario compilado desde la etapa anterior
-COPY --from=builder /app/server .
+# Copiar las zonas horarias y certificados CA desde la etapa de compilación
+COPY --from=builder /usr/share/zoneinfo /usr/share/zoneinfo
+COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certificates.crt
+COPY --from=builder /etc/passwd-nonroot /etc/passwd
 
-# Asignar propiedad del archivo al usuario no-root
-RUN chown -R appuser:appgroup /app
+# Copiar el binario compilado desde el builder
+COPY --from=builder /app/server /server
 
-USER appuser
+# Ejecutar con el usuario no privilegiado (UID 65532)
+USER nonroot:nonroot
 
+# Exponer el puerto de la aplicación (e.g., 8080)
 EXPOSE 8080
 
-ENTRYPOINT ["./server"]
+# Comando de entrada
+ENTRYPOINT ["/server"]
