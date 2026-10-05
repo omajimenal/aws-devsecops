@@ -16,7 +16,10 @@ provider "aws" {
 resource "aws_iam_openid_connect_provider" "github" {
   url             = "https://token.actions.githubusercontent.com"
   client_id_list  = ["sts.amazonaws.com"]
-  thumbprint_list = ["6938fd4d98bab03faadb97b34396831e3780aea1"]
+  thumbprint_list = [
+    "6938fd4d98bab03faadb97b34396831e3780aea1",
+    "1c58a21770e6a7ef132530f383f68a7092c27352"
+  ]
 }
 
 # 2. ROL IAM RESTRINGIDO (Mínimo privilegio mediante OIDC)
@@ -37,7 +40,7 @@ resource "aws_iam_role" "github_ci_role" {
             "token.actions.githubusercontent.com:aud" = "sts.amazonaws.com"
           }
           StringLike = {
-            "token.actions.githubusercontent.com:sub" = "repo:${var.github_repo}:ref:refs/heads/main"
+            "token.actions.githubusercontent.com:sub" = "repo:omajimenal/aws-devsecops:*"
           }
         }
       }

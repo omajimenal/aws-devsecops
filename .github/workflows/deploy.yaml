@@ -8,10 +8,6 @@ on:
     branches:
       - main
 
-permissions:
-  id-token: write # Requerido para solicitar el token JWT de OIDC a AWS
-  contents: read  # Requerido para checkout del código
-
 env:
   AWS_REGION: "us-east-1"
   ROLE_TO_ASSUME: "arn:aws:iam::349788921948:role/github-actions-ci-role"
@@ -24,6 +20,8 @@ jobs:
   security-checks:
     name: Security & Linting
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
@@ -38,7 +36,7 @@ jobs:
         with:
           framework: terraform,dockerfile
           output_format: cli
-          soft_fail: true # No bloquea en advertencias menores, pero reporta hallazgos
+          soft_fail: true
 
   # ---------------------------------------------------------------------------
   # JOB 2: Build, Escaneo de Contenedor y Publicación en ECR
@@ -48,6 +46,9 @@ jobs:
     needs: security-checks
     runs-on: ubuntu-latest
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    permissions:
+      id-token: write  # <-- REQUERIDO PARA OIDC
+      contents: read
 
     steps:
       - name: Checkout Code
@@ -65,7 +66,7 @@ jobs:
         with:
           image-ref: '${{ env.ECR_REPOSITORY }}:${{ github.sha }}'
           format: 'table'
-          exit-code: '1' # Detiene el pipeline si encuentra vulnerabilidades CRITICAL
+          exit-code: '1'
           ignore-unfixed: true
           vuln-type: 'os,library'
           severity: 'CRITICAL'
