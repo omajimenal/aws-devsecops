@@ -18,8 +18,8 @@ COPY . .
 # Compilar un binario completamente estático sin dependencias de C (CGO_ENABLED=0)
 # -ldflags="-s -w" elimina símbolos de depuración y tablas de símbolos para reducir el tamaño
 RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build \
-    -ldflags="-s -w -extldflags '-static'" \
-    -o /app/server ./cmd/server
+    -ldflags="-s -w" \
+    -o /app/server ./src
 
 # Crear un usuario no privilegiado en la etapa de build
 RUN echo "nonroot:x:65532:65532:nonroot:/:" > /etc/passwd-nonroot
