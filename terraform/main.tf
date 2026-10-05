@@ -30,7 +30,10 @@ resource "aws_iam_role" "github_ci_role" {
     Version = "2012-10-17"
     Statement = [
       {
-        Action = "sts:AssumeRoleWithWebIdentity"
+        Action = [
+          "sts:AssumeRoleWithWebIdentity",
+          "sts:TagSession"
+        ]
         Effect = "Allow"
         Principal = {
           Federated = aws_iam_openid_connect_provider.github.arn
