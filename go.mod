@@ -1,3 +1,3 @@
 module github.com/omajimenal/aws-devsecops
 
-go 1.26.2
+go 1.24
