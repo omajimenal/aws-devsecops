@@ -104,13 +104,11 @@ jobs:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
           IMAGE_TAG: ${{ github.sha }}
         run: |
-          # Etiquetar con Git SHA y latest
+          # Etiquetar con Git SHA únicamente (Inmutabilidad habilitada en ECR)
           docker tag enterprise-app:local $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
-          docker tag enterprise-app:local $ECR_REGISTRY/$ECR_REPOSITORY:latest
 
-          # Subir imágenes
+          # Subir la imagen con el tag único del commit
           docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
-          docker push $ECR_REGISTRY/$ECR_REPOSITORY:latest
 
           # Exportar el digest exacto para Cosign
           DIGEST=$(docker inspect --format='{{index .RepoDigests 0}}' $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG)
