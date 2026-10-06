@@ -9,7 +9,7 @@ on:
 # Permisos mínimos necesarios para OIDC (AWS) y subir reportes SARIF / firmar con Cosign
 permissions:
   id-token: write
-  contents: read
+  contents: write
   security-events: write
 
 env:
@@ -39,6 +39,16 @@ jobs:
         with:
           args: '-no-fail -fmt sarif -out gosec.sarif ./...'
 
+      # ========================================================================
+      # Escaneo de Infraestructura como Código (IaC Scan con Checkov)
+      # ========================================================================
+      - name: Run Checkov IaC Security Scan
+        uses: bridgecrewio/checkov-action@master
+        with:
+          framework: all # Escanea Terraform, Helm, Kubernetes YAMLs, Dockerfile
+          output_format: cli
+          soft_fail: true # Ponlo en false cuando quieras bloquear el build por malas prácticas en IaC
+      
       # ========================================================================
       # 2. Build de la Imagen Local
       # ========================================================================
@@ -117,3 +127,20 @@ jobs:
         if: github.ref == 'refs/heads/main'
         run: |
           cosign sign --yes "${{ env.IMAGE_DIGEST }}"
+
+      # ========================================================================
+      # 8. Actualizar Manifiesto GitOps (Solo en rama main)
+      # ========================================================================
+      - name: Update Helm / GitOps Image Tag
+        if: github.ref == 'refs/heads/main'
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          
+          # Si tienes una carpeta k8s/helm/values.yaml o k8s/deployment.yaml:
+          if [ -f k8s/helm/values.yaml ]; then
+            sed -i 's/tag: .*/tag: "${{ github.sha }}"/' k8s/helm/values.yaml
+            git add k8s/helm/values.yaml
+            git commit -m "chore(gitops): update image tag to ${{ github.sha }} [skip ci]" || exit 0
+            git push origin main
+          fi
