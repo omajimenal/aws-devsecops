@@ -6,9 +6,20 @@ on:
   pull_request:
     branches: [ "main" ]
 
+# Permisos mínimos necesarios para OIDC (AWS) y subir reportes SARIF / firmar con Cosign
+permissions:
+  id-token: write
+  contents: read
+  security-events: write
+
+env:
+  AWS_REGION: us-east-1                  # Cambia por tu región de AWS
+  ECR_REPOSITORY: enterprise-app         # Cambia por el nombre de tu repositorio ECR
+  ROLE_TO_ASSUME: arn:aws:iam::349788921948:role/github-actions-ci-role # Tu ARN del rol IAM con OIDC
+
 jobs:
-  build-and-scan:
-    name: Build & Security Scan
+  build-scan-and-push:
+    name: Build, Security Scan & Push
     runs-on: ubuntu-latest
 
     steps:
@@ -43,17 +54,66 @@ jobs:
         with:
           image-ref: 'enterprise-app:local'
           format: 'table'
-          exit-code: '0' # Cambia temporalmente a 0 para auditar las vulnerabilidades detectadas
+          exit-code: '0'
           ignore-unfixed: true
           vuln-type: 'os,library'
           severity: 'CRITICAL,HIGH'
 
       # ========================================================================
-      # 4. Upload SARIF (Asegurar permisos básicos)
+      # 4. Upload SARIF (Gosec)
       # ========================================================================
       - name: Upload SARIF report to GitHub Security tab
         uses: github/codeql-action/upload-sarif@v3
-        continue-on-error: true # Permite continuar si el repo no tiene GitHub Advanced Security habilitado
+        continue-on-error: true
         if: always()
         with:
           sarif_file: 'gosec.sarif'
+
+      # ========================================================================
+      # 5. Autenticación OIDC con AWS (Solo en rama main)
+      # ========================================================================
+      - name: Configure AWS Credentials (OIDC)
+        if: github.ref == 'refs/heads/main'
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ env.ROLE_TO_ASSUME }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Log in to Amazon ECR
+        if: github.ref == 'refs/heads/main'
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      # ========================================================================
+      # 6. Re-tag & Push a Amazon ECR
+      # ========================================================================
+      - name: Build, Tag and Push Image to ECR
+        if: github.ref == 'refs/heads/main'
+        id: push-image
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          # Etiquetar con Git SHA y latest
+          docker tag enterprise-app:local $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+          docker tag enterprise-app:local $ECR_REGISTRY/$ECR_REPOSITORY:latest
+
+          # Subir imágenes
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY:latest
+
+          # Exportar el digest exacto para Cosign
+          DIGEST=$(docker inspect --format='{{index .RepoDigests 0}}' $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG)
+          echo "IMAGE_DIGEST=$DIGEST" >> $GITHUB_ENV
+
+      # ========================================================================
+      # 7. Instalación y Firma con Cosign (Keyless Sigstore)
+      # ========================================================================
+      - name: Install Cosign
+        if: github.ref == 'refs/heads/main'
+        uses: sigstore/cosign-installer@v3.8.0
+
+      - name: Sign Image with Cosign
+        if: github.ref == 'refs/heads/main'
+        run: |
+          cosign sign --yes "${{ env.IMAGE_DIGEST }}"
