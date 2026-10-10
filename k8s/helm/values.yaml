@@ -3,7 +3,7 @@ replicaCount: 2
 image:
   repository: 349788921948.dkr.ecr.us-east-1.amazonaws.com/enterprise-app
   pullPolicy: IfNotPresent
-  tag: "initial" # Este valor sera actualizado automaticamente por GitHub Actions
+  tag: "3bda3b157976793612b320d363142538e1388b1d"
 
 nameOverride: ""
 fullnameOverride: ""
